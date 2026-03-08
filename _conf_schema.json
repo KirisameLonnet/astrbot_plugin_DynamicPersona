@@ -70,6 +70,12 @@
             "hint": "为该人格指定专用模型。例如：角色扮演人格用创意模型，严肃助手人格用推理模型。留空则跟随当前会话",
             "default": ""
           },
+          "model_name": {
+            "description": "该人格使用的具体模型名（留空则使用提供商的默认模型）",
+            "type": "string",
+            "hint": "选填。指定在该提供商下使用的特定模型（如 gpt-4o, qwen-turbo 等）。如果对应提供商是单模型接口则无需填写。",
+            "default": ""
+          },
           "persona_desc": {
             "description": "人格描述（该人格的身份与能力）",
             "type": "text",

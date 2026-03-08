@@ -121,16 +121,19 @@ class DynamicPersonaPlugin(Star):
         cache_ttl: int = self.config.get("cache_ttl", 3)
         selected_persona_id: str | None = None
         selected_provider_id: str = ""
+        selected_model_name: str = ""
 
         if cache_ttl > 0 and umo in self._persona_cache:
             cache_entry = self._persona_cache[umo]
             if cache_entry["hit_count"] < cache_ttl:
                 selected_persona_id = cache_entry["persona_id"]
                 selected_provider_id = cache_entry.get("provider_id", "")
+                selected_model_name = cache_entry.get("model_name", "")
                 cache_entry["hit_count"] += 1
+                model_disp = f"/{selected_model_name}" if selected_model_name else ""
                 logger.debug(
                     f"[DynamicPersona] 命中缓存人格 {selected_persona_id} "
-                    f"provider={selected_provider_id or '(当前会话默认)'} "
+                    f"provider={selected_provider_id or '(会话默认)'}{model_disp} "
                     f"({cache_entry['hit_count']}/{cache_ttl})"
                 )
 
@@ -145,10 +148,11 @@ class DynamicPersonaPlugin(Star):
                     f"[DynamicPersona] Selector 选取失败，自动回退规则 #0: {selected_persona_id}"
                 )
 
-            # 查询命中的 provider_id
+            # 查询命中的 provider_id 和 model_name
             for rule in rules:
                 if rule.get("persona_id") == selected_persona_id:
                     selected_provider_id = rule.get("provider_id", "") or ""
+                    selected_model_name = rule.get("model_name", "") or ""
                     break
 
             # 存储此轮对话缓存
@@ -156,6 +160,7 @@ class DynamicPersonaPlugin(Star):
                 self._persona_cache[umo] = {
                     "persona_id": selected_persona_id,
                     "provider_id": selected_provider_id,
+                    "model_name": selected_model_name,
                     "hit_count": 1,
                 }
 
@@ -166,6 +171,13 @@ class DynamicPersonaPlugin(Star):
                 f"[DynamicPersona] 强制设定底层派发 provider={selected_provider_id}"
             )
             event.set_extra("selected_provider", selected_provider_id)
+        
+        # 覆写专属模型名
+        if selected_model_name:
+            logger.debug(
+                f"[DynamicPersona] 强制设定底层模型名 model={selected_model_name}"
+            )
+            event.set_extra("selected_model", selected_model_name)
 
         # 把即将需要替换的 persona 放进 event。
         # 这样在 on_llm_request 时就能知道这个请求是经过我们处理并要求覆写内容的了
@@ -344,7 +356,7 @@ class DynamicPersonaPlugin(Star):
         cache_info = self._persona_cache.get(umo)
         cache_str = (
             f"当前缓存: {cache_info['persona_id']}"
-            f" → Provider[{cache_info.get('provider_id') or '不指定(原生)'}] "
+            f" → Provider[{cache_info.get('provider_id') or '原生'}]:{cache_info.get('model_name') or '默认'} "
             f"({cache_info['hit_count']}/{cache_ttl})"
             if cache_info else "目前处于未驻留状态"
         )
@@ -354,7 +366,9 @@ class DynamicPersonaPlugin(Star):
             flag = "☑" if r.get("rule_enabled", True) else "☐"
             pid = r.get("persona_id", "???")
             prov = r.get("provider_id", "") or "跟随"
-            rules_detail.append(f"  {flag} {pid} [{prov}]")
+            mod = r.get("model_name", "")
+            mod_disp = f":{mod}" if mod else ""
+            rules_detail.append(f"  {flag} {pid} [{prov}{mod_disp}]")
 
         lines = [
             "🧠 **DynamicPersona V2 调度器核心**",
