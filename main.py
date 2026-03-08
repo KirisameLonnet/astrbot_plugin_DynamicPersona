@@ -151,8 +151,15 @@ class DynamicPersonaPlugin(Star):
             # 查询命中的 provider_id 和 model_name
             for rule in rules:
                 if rule.get("persona_id") == selected_persona_id:
-                    selected_provider_id = rule.get("provider_id", "") or ""
-                    selected_model_name = rule.get("model_name", "") or ""
+                    p_str = rule.get("provider_id", "") or ""
+                    # 解析 AstrBot UI 返回的组合格式 (如 openai|gpt-4o 或 openai/gpt-4o)
+                    if "|" in p_str:
+                        selected_provider_id, selected_model_name = p_str.split("|", 1)
+                    elif "/" in p_str:
+                        selected_provider_id, selected_model_name = p_str.split("/", 1)
+                    else:
+                        selected_provider_id = p_str
+                        selected_model_name = ""
                     break
 
             # 存储此轮对话缓存
@@ -366,9 +373,7 @@ class DynamicPersonaPlugin(Star):
             flag = "☑" if r.get("rule_enabled", True) else "☐"
             pid = r.get("persona_id", "???")
             prov = r.get("provider_id", "") or "跟随"
-            mod = r.get("model_name", "")
-            mod_disp = f":{mod}" if mod else ""
-            rules_detail.append(f"  {flag} {pid} [{prov}{mod_disp}]")
+            rules_detail.append(f"  {flag} {pid} [{prov}]")
 
         lines = [
             "🧠 **DynamicPersona V2 调度器核心**",

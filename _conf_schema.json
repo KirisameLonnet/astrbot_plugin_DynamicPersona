@@ -64,16 +64,10 @@
             "hint": "从 AstrBot WebUI 人格管理页面中已创建的人格列表中选择"
           },
           "provider_id": {
-            "description": "该人格使用的模型提供商（留空则使用当前会话默认模型）",
+            "description": "该人格使用的模型提供商及模型（留空则使用当前会话默认模型）",
             "type": "string",
             "_special": "select_provider",
             "hint": "为该人格指定专用模型。例如：角色扮演人格用创意模型，严肃助手人格用推理模型。留空则跟随当前会话",
-            "default": ""
-          },
-          "model_name": {
-            "description": "该人格使用的具体模型名（留空则使用提供商的默认模型）",
-            "type": "string",
-            "hint": "选填。指定在该提供商下使用的特定模型（如 gpt-4o, qwen-turbo 等）。如果对应提供商是单模型接口则无需填写。",
             "default": ""
           },
           "persona_desc": {
