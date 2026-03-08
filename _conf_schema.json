@@ -31,20 +31,31 @@
     "hint": "例如：当用户使用中文时，优先选择更活泼的人格"
   },
   "persona_rules": {
-    "description": "动态人格规则列表（至少配置 2 条规则插件才会生效）",
+    "description": "动态人格规则列表（从已有人格中选择并配置，至少启用 2 个人格插件才会生效）",
     "type": "list",
-    "hint": "每条规则绑定一个人格并描述该人格适合的使用场景，Selector LLM 将根据用户消息匹配最合适的一个",
+    "hint": "从 AstrBot 人格列表中选择人格，为每个人格填写描述和适用场景，并决定是否启用",
     "items": {
+      "rule_enabled": {
+        "description": "是否启用该人格规则",
+        "type": "bool",
+        "default": true
+      },
       "persona_id": {
-        "description": "人格 ID",
+        "description": "选择人格",
         "type": "string",
         "_special": "select_persona",
-        "hint": "选择已在 AstrBot WebUI 人格管理页面中创建好的人格"
+        "hint": "从 AstrBot WebUI 人格管理页面中已创建的人格列表中选择"
+      },
+      "persona_desc": {
+        "description": "人格描述（该人格的身份与能力）",
+        "type": "text",
+        "hint": "描述该人格的角色定位和能力特征。例如：专业的计算机领域从业者，具有调用本机 shell 的能力，擅长代码调试与系统管理",
+        "default": ""
       },
       "scenario_desc": {
-        "description": "该人格适用场景描述（供 Selector LLM 参考）",
+        "description": "使用该人格的情况（何时应该切换到此人格）",
         "type": "text",
-        "hint": "用自然语言描述该人格最适合的使用场景，越具体越准确。例如：用户聊天轻松打趣、玩梗、调侃时；用户在认真提问、请求技术解答、工作任务时",
+        "hint": "描述什么样的用户消息应该触发切换到此人格。例如：用户发出相对严肃的任务请求、知识询问或命令指示时启用该人格",
         "default": ""
       }
     }

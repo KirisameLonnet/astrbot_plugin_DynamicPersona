@@ -7,9 +7,9 @@
 主要逻辑：
 1. 拦截 on_llm_request 事件。
 2. 若当前对话已绑定原生人格（conversation.persona_id 非 None），直接放行。
-3. 若 persona_rules 列表为空（< 2 条），直接放行。
+3. 从 persona_rules 中过滤出 rule_enabled=True 的规则，不足 2 条则放行。
 4. 检查 session 维度缓存，命中则复用上次选择结果，否则调用 Selector LLM。
-5. Selector LLM 分析用户消息，返回最合适的 persona_id。
+5. Selector LLM 基于每条规则的「人格描述」和「使用场景」分析用户消息，返回最合适的 persona_id。
 6. 从 PersonaManager 获取该 persona 的 system_prompt 并注入到请求中。
 """
 
@@ -24,9 +24,9 @@ from astrbot.api.star import Context, Star, register
 _SELECTOR_SYSTEM_PROMPT = """你是一个对话风格分析器。你的任务是根据用户最新发送的消息，从给定的人格列表中选择最合适的一个。
 
 规则：
-1. 仔细阅读每个人格的适用场景描述。
+1. 仔细阅读每个人格的「人格描述」和「使用该人格的情况」。
 2. 分析用户消息的语义、情感倾向和意图。
-3. 选择最匹配当前用户意图的人格。
+3. 将用户意图与每个人格的「使用该人格的情况」进行匹配，选择最合适的人格。
 4. 只返回 JSON 格式的结果，不要有任何其他文字。
 
 返回格式（严格 JSON）：
@@ -48,7 +48,7 @@ _SELECTOR_USER_PROMPT_TMPL = """可选人格列表：
     "astrbot_plugin_DynamicPersona",
     "KirisameLonnet",
     "根据聊天内容自主切换 LLM 人格的动态人格插件",
-    "1.3.0",
+    "1.0.0",
 )
 class DynamicPersonaPlugin(Star):
     def __init__(self, context: Context, config: AstrBotConfig):
@@ -61,12 +61,16 @@ class DynamicPersonaPlugin(Star):
         self._persona_cache: dict[str, dict] = {}
 
     async def initialize(self):
+        all_rules = self.config.get("persona_rules", [])
+        active_count = sum(
+            1 for r in all_rules if r.get("rule_enabled", True)
+        )
         logger.info(
             "[DynamicPersona] 插件已加载。"
             f" enabled={self.config.get('enabled', True)}"
             f" cache_ttl={self.config.get('cache_ttl', 3)}"
             f" inject_mode={self.config.get('inject_mode', 'replace')}"
-            f" rules_count={len(self.config.get('persona_rules', []))}"
+            f" rules={active_count}/{len(all_rules)}(启用/总计)"
         )
 
     # ─────────────────────────────────────────────
@@ -80,8 +84,9 @@ class DynamicPersonaPlugin(Star):
         if not self.config.get("enabled", True):
             return
 
-        # 2. 检查 persona_rules 是否至少有 2 条
-        rules: list[dict] = self.config.get("persona_rules", [])
+        # 2. 过滤出已启用的 persona_rules，至少需要 2 条
+        all_rules: list[dict] = self.config.get("persona_rules", [])
+        rules = [r for r in all_rules if r.get("rule_enabled", True)]
         if len(rules) < 2:
             return
 
@@ -151,12 +156,17 @@ class DynamicPersonaPlugin(Star):
         user_message: str,
     ) -> str | None:
         """调用 Selector LLM 分析消息并返回最合适的 persona_id。"""
-        # 构建人格列表描述
+        # 构建人格列表描述（包含人格描述 + 使用场景）
         persona_list_lines = []
         for i, rule in enumerate(rules):
             pid = rule.get("persona_id", "")
-            desc = rule.get("scenario_desc", "（无场景描述）")
-            persona_list_lines.append(f"{i + 1}. 人格 ID: {pid}\n   适用场景: {desc}")
+            p_desc = rule.get("persona_desc", "") or "（无人格描述）"
+            s_desc = rule.get("scenario_desc", "") or "（无场景描述）"
+            persona_list_lines.append(
+                f"{i + 1}. 人格 ID: {pid}\n"
+                f"   人格描述: {p_desc}\n"
+                f"   使用该人格的情况: {s_desc}"
+            )
         persona_list_str = "\n".join(persona_list_lines)
 
         extra_prompt = self.config.get("selector_prompt_extra", "").strip()
@@ -283,7 +293,8 @@ class DynamicPersonaPlugin(Star):
     async def dp_status(self, event: AstrMessageEvent):
         """查看动态人格插件当前状态"""
         enabled = self.config.get("enabled", True)
-        rules: list = self.config.get("persona_rules", [])
+        all_rules: list = self.config.get("persona_rules", [])
+        active_rules = [r for r in all_rules if r.get("rule_enabled", True)]
         cache_ttl = self.config.get("cache_ttl", 3)
         inject_mode = self.config.get("inject_mode", "replace")
         selector_pid = self.config.get("selector_provider_id", "") or "（跟随会话）"
@@ -297,13 +308,21 @@ class DynamicPersonaPlugin(Star):
             else "当前无缓存"
         )
 
+        # 列出每条规则的启用状态
+        rules_detail = []
+        for r in all_rules:
+            flag = "✅" if r.get("rule_enabled", True) else "⬜"
+            pid = r.get("persona_id", "???")
+            rules_detail.append(f"  {flag} {pid}")
+
         lines = [
             "📋 **动态人格插件状态**",
             f"• 启用: {'✅' if enabled else '❌'}",
             f"• 注入方式: {inject_mode}",
             f"• 缓存条数 (TTL): {cache_ttl}",
             f"• Selector 模型: {selector_pid}",
-            f"• 人格规则数量: {len(rules)} 条",
+            f"• 人格规则: {len(active_rules)}/{len(all_rules)}(启用/总计)",
+            *rules_detail,
             f"• {cache_str}",
         ]
         yield event.plain_result("\n".join(lines))
