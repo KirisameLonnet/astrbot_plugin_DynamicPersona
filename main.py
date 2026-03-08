@@ -303,7 +303,7 @@ class DynamicPersonaPlugin(Star):
 
         try:
             persona_mgr = self.context.persona_manager
-            persona = persona_mgr.get_persona(persona_id)
+            persona = await persona_mgr.get_persona(persona_id)
             if persona is None:
                 logger.warning(
                     f"[DynamicPersona] 人格 {persona_id!r} 不存在，跳过注入。"
@@ -379,7 +379,7 @@ class DynamicPersonaPlugin(Star):
     async def dp_personas(self, event: AstrMessageEvent):
         """列出当前 AstrBot 中所有可用的人格"""
         try:
-            all_personas = self.context.persona_manager.get_all_personas()
+            all_personas = await self.context.persona_manager.get_all_personas()
         except Exception as e:
             yield event.plain_result(f"❌ 获取人格列表失败：{e}")
             return
