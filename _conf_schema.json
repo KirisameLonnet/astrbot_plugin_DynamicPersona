@@ -64,10 +64,10 @@
             "hint": "从 AstrBot WebUI 人格管理页面中已创建的人格列表中选择"
           },
           "provider_id": {
-            "description": "该人格使用的模型提供商及模型（留空则使用当前会话默认模型）",
+            "description": "该人格使用的对话模型配置",
             "type": "string",
             "_special": "select_provider",
-            "hint": "为该人格指定专用模型。例如：角色扮演人格用创意模型，严肃助手人格用推理模型。留空则跟随当前会话",
+            "hint": "从 AstrBot 已配置的对话模型下拉列表中选择。这里选择的是用户已经配置好的 Provider 条目，通常已经包含对应模型信息；留空则跟随当前会话",
             "default": ""
           },
           "persona_desc": {
