@@ -1,6 +1,6 @@
 name: astrbot_plugin_DynamicPersona
-display_name: 动态人格 # 用于展示的名字，可以是方便人类阅读的名字（需要版本 >= v4.5.0，低版本不会报错，请放心填写）
-desc: 动态人格插件，根据聊天内容自主切换llm人格
-version: v1.0.1 # 插件版本号。格式：v1.1.1 或者 v1.1
+display_name: 动态人格
+desc: 动态人格插件，根据聊天内容自主切换llm人格，支持给单个人格绑定单独的API
+version: v1.0.1
 author: KirisameLonnet
 repo: https://github.com/KirisameLonnet/astrbot_plugin_DynamicPersona
